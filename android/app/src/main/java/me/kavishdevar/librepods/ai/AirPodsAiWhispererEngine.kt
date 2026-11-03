@@ -74,6 +74,8 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
         }
 
         Log.i(TAG, "Double-nod gesture validated! Starting privacy-guarded listening cycle...")
+        // Play subtle ear chime confirming activation
+        playActivationChime()
         startGuardedListening()
     }
 
@@ -324,6 +326,40 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
         }
     }
 
+    private fun playActivationChime() {
+        try {
+            val toneGen = android.media.ToneGenerator(android.media.AudioManager.STREAM_VOICE_CALL, 90)
+            toneGen.startTone(android.media.ToneGenerator.TONE_PROP_BEEP2, 180)
+            CoroutineScope(Dispatchers.Default).launch {
+                delay(250)
+                toneGen.release()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to play activation chime: " + e.message)
+        }
+    }
+
+    fun testApiConnection(provider: String, apiKey: String, onResult: (Boolean, String) -> Unit) {
+        scope.launch {
+            try {
+                val testPrompt = "Reply with exactly one word: OK"
+                val response = if (provider == "nvidia") {
+                    callNvidiaApi(testPrompt, apiKey)
+                } else if (provider == "openrouter") {
+                    callOpenRouterApi(testPrompt, apiKey)
+                } else {
+                    callGeminiFlashApi(testPrompt, apiKey)
+                }
+                if (response.isNotBlank()) {
+                    onResult(true, "Success: AI responded!")
+                } else {
+                    onResult(false, "Failed: empty or invalid response. Check your API key.")
+                }
+            } catch (e: Exception) {
+                onResult(false, "Error: " + (e.message ?: "network error"))
+            }
+        }
+    }
     fun release() {
         stopListening()
         tts?.stop()

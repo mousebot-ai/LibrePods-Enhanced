@@ -97,10 +97,10 @@ class GestureDetector(
         while (verticalAvgBuffer.size < 3) verticalAvgBuffer.add(0.0)
     }
 
-fun startDetection(doNotStop: Boolean = false, onGestureDetected: (Boolean) -> Unit) {
+fun startDetection(doNotStop: Boolean = false, onGestureDetected: ((Boolean) -> Unit)? = null) {
         if (isRunning) return
 
-        Log.d(TAG, "Starting gesture detection...")
+        Log.d(TAG, "Starting gesture detection (doNotStop=" + doNotStop + ")...")
         isRunning = true
         gestureDetectedCallback = onGestureDetected
 
@@ -121,9 +121,15 @@ fun startDetection(doNotStop: Boolean = false, onGestureDetected: (Boolean) -> U
                         audio.playConfirmation(gesture)
 
                         gestureDetectedCallback?.invoke(gesture)
-                        stopDetection(doNotStop)
+                        if (!doNotStop) {
+                            stopDetection(false)
+                        } else {
+                            clearData()
+                            prevHorizontal = 0.0
+                            prevVertical = 0.0
+                        }
                     }
-                    break
+                    if (!doNotStop) break
                 }
             }
         }

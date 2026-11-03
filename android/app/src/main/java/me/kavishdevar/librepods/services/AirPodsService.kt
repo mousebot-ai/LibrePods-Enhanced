@@ -2795,13 +2795,17 @@ class AirPodsService : Service(), SharedPreferences.OnSharedPreferenceChangeList
                     aacpManager.sendSomePacketIDontKnowWhatItIs()
                     delay(200)
                     aacpManager.sendRequestProximityKeys((AACPManager.Companion.ProximityKeyType.IRK.value + AACPManager.Companion.ProximityKeyType.ENC_KEY.value).toByte())
-                    if (!handleIncomingCallOnceConnected) startHeadTracking() else handleIncomingCall()
+                    if (!handleIncomingCallOnceConnected) {
+                        initGestureDetector()
+                        startHeadTracking()
+                        gestureDetector?.startDetection(doNotStop = true)
+                    } else handleIncomingCall()
                     Handler(Looper.getMainLooper()).postDelayed({
                         aacpManager.sendPacket(aacpManager.createHandshakePacket())
                         aacpManager.sendSetFeatureFlagsPacket()
                         aacpManager.sendNotificationRequest()
                         aacpManager.sendRequestProximityKeys(AACPManager.Companion.ProximityKeyType.IRK.value)
-                        if (!handleIncomingCallOnceConnected) stopHeadTracking()
+                        // Keep head tracking active for AI Ear Whisperer gestures: do not stop!
                     }, 5000)
 
                     sendBroadcast(

@@ -293,9 +293,12 @@ fun AppSettingsScreen(
             StyledList(title = "AI Ear Whisperer (Head Nod Trigger)") {
                 val prefs = context.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
                 val aiEnabled = remember { androidx.compose.runtime.mutableStateOf(prefs.getBoolean("ai_whisperer_enabled", true)) }
+                val currentProvider = remember { androidx.compose.runtime.mutableStateOf(prefs.getString("ai_whisperer_provider", "gemini") ?: "gemini") }
                 val apiKeySaved = prefs.getString("ai_whisperer_api_key", "") ?: ""
                 val apiKeyInputState = remember { androidx.compose.foundation.text.input.TextFieldState(apiKeySaved) }
                 val apiKeyFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+                val testStatus = remember { androidx.compose.runtime.mutableStateOf("") }
+                val isTesting = remember { androidx.compose.runtime.mutableStateOf(false) }
 
                 StyledToggle(
                     label = "AI Ear Whisperer Master",
@@ -312,34 +315,117 @@ fun AppSettingsScreen(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         androidx.compose.material3.Text(
-                            text = "Gemini Flash 2.0 (100% Free - 1500 req/day)",
+                            text = "AI Model Provider (100% Free):",
                             style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
                             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                         )
+
+                        androidx.compose.foundation.layout.Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+                        ) {
+                            val isGemini = currentProvider.value == "gemini"
+                            val isNvidia = currentProvider.value == "nvidia"
+
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = {
+                                    currentProvider.value = "gemini"
+                                    prefs.edit().putString("ai_whisperer_provider", "gemini").apply()
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (isGemini) androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent
+                                )
+                            ) {
+                                androidx.compose.material3.Text("Google Gemini", maxLines = 1)
+                            }
+
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = {
+                                    currentProvider.value = "nvidia"
+                                    prefs.edit().putString("ai_whisperer_provider", "nvidia").apply()
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (isNvidia) androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent
+                                )
+                            ) {
+                                androidx.compose.material3.Text("NVIDIA NIM", maxLines = 1)
+                            }
+                        }
+
+                        val providerDesc = if (currentProvider.value == "nvidia") {
+                            "NVIDIA NIM (Llama 3.3 70B Instruct / Qwen 2.5). Free API keys available at build.nvidia.com (starts with nvapi-...):"
+                        } else {
+                            "Gemini 2.5 Flash (1500 free requests/day, 0 cost). Free keys at aistudio.google.com (starts with AIzaSy... or AQ...):"
+                        }
+
                         androidx.compose.material3.Text(
-                            text = "No credit card or payment needed. Get a free API key at aistudio.google.com and paste it below:",
+                            text = providerDesc,
                             style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
                             color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
+                            modifier = Modifier.padding(bottom = 8.dp)
                         )
+
+                        val placeholderText = if (currentProvider.value == "nvidia") "Paste NVIDIA API Key (nvapi-...)" else "Paste Gemini API Key (AIzaSy... or AQ...)"
 
                         StyledInputField(
                             inputState = apiKeyInputState,
                             focusRequester = apiKeyFocusRequester,
-                            placeholder = "Paste Gemini API Key (AIzaSy...)",
+                            placeholder = placeholderText,
                             singleLine = true,
                             forceApple = true
                         )
 
-                        androidx.compose.material3.Button(
-                            onClick = {
-                                val key = apiKeyInputState.text.toString().trim()
-                                prefs.edit().putString("ai_whisperer_api_key", key).apply()
-                                android.widget.Toast.makeText(context, "API Key Saved Successfully!", android.widget.Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                        androidx.compose.foundation.layout.Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
                         ) {
-                            androidx.compose.material3.Text("Save API Key")
+                            androidx.compose.material3.Button(
+                                onClick = {
+                                    val key = apiKeyInputState.text.toString().trim()
+                                    prefs.edit().putString("ai_whisperer_api_key", key).apply()
+                                    android.widget.Toast.makeText(context, "API Key Saved!", android.widget.Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                androidx.compose.material3.Text("Save Key")
+                            }
+
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = {
+                                    val key = apiKeyInputState.text.toString().trim()
+                                    if (key.isBlank()) {
+                                        testStatus.value = "Please enter an API key first"
+                                        return@OutlinedButton
+                                    }
+                                    isTesting.value = true
+                                    testStatus.value = "Testing " + currentProvider.value.uppercase() + "..."
+                                    val whisperer = me.kavishdevar.librepods.ai.AirPodsAiWhispererEngine(context)
+                                    whisperer.testApiConnection(currentProvider.value, key) { success, msg ->
+                                        androidx.compose.runtime.snapshotFlow { }.let {
+                                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                                isTesting.value = false
+                                                testStatus.value = msg
+                                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                enabled = !isTesting.value
+                            ) {
+                                androidx.compose.material3.Text(if (isTesting.value) "Testing..." else "Test API")
+                            }
+                        }
+
+                        if (testStatus.value.isNotBlank()) {
+                            androidx.compose.material3.Text(
+                                text = testStatus.value,
+                                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                                color = if (testStatus.value.startsWith("Success")) androidx.compose.ui.graphics.Color(0xFF2E7D32) else androidx.compose.material3.MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
                         }
                     }
                 }
