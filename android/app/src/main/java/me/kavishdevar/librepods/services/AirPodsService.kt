@@ -285,7 +285,21 @@ class AirPodsService : Service(), SharedPreferences.OnSharedPreferenceChangeList
             lidOpen: Boolean,
         ) {
             if (lidOpen) {
-                Log.d(TAG, "Lid opened")
+                Log.d(TAG, "Lid opened: instantly auto-connecting AirPods Pro")
+                val savedMac = sharedPreferences.getString("mac_address", "") ?: ""
+                val bluetoothManager = getSystemService(BluetoothManager::class.java)
+                val bluetoothAdapter = bluetoothManager?.adapter
+                var targetDevice: BluetoothDevice? = if (savedMac.isNotEmpty() && bluetoothAdapter != null) {
+                    try { bluetoothAdapter.getRemoteDevice(savedMac) } catch (e: Exception) { null }
+                } else null
+                if (targetDevice == null && bluetoothAdapter != null) {
+                    val airpodsUuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
+                    targetDevice = bluetoothAdapter.bondedDevices?.firstOrNull { it.uuids?.contains(airpodsUuid) == true || (it.name?.contains("AirPods", ignoreCase = true) == true) }
+                }
+                if (targetDevice != null) {
+                    me.kavishdevar.librepods.bluetooth.InstantAirPodsConnectBridge.triggerInstantConnection(this@AirPodsService, targetDevice)
+                    connectAudio(this@AirPodsService, targetDevice)
+                }
                 showPopup(
                     this@AirPodsService,
                     getSharedPreferences("settings", MODE_PRIVATE).getString("name", "AirPods Pro")
