@@ -290,6 +290,30 @@ fun AppSettingsScreen(
                 )
             }
 
+            StyledList(title = "AI Ear Whisperer (Head Nod Trigger)") {
+                val prefs = context.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
+                val aiEnabled = remember { androidx.compose.runtime.mutableStateOf(prefs.getBoolean("ai_whisperer_enabled", true)) }
+
+                StyledToggle(
+                    label = "AI Ear Whisperer",
+                    description = "Nod head up & down x2 to discreetly transcribe and whisper conversational answers in your ear.",
+                    checked = aiEnabled.value,
+                    onCheckedChange = { newVal ->
+                        aiEnabled.value = newVal
+                        prefs.edit().putBoolean("ai_whisperer_enabled", newVal).apply()
+                    }
+                )
+
+                StyledToggle(
+                    label = "Gemini Flash AI Engine (Free)",
+                    description = "Uses Google Gemini 2.0 Flash for ultra-fast, zero-cost conversational answers (~200ms).",
+                    checked = true,
+                    onCheckedChange = {}
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             StyledList(title = stringResource(R.string.takeover_airpods_state)) {
                 StyledToggle(
                     label = stringResource(R.string.takeover_disconnected),

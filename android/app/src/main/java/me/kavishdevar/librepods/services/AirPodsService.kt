@@ -2422,6 +2422,27 @@ class AirPodsService : Service(), SharedPreferences.OnSharedPreferenceChangeList
                 Log.d(TAG, "Received bluetooth connection broadcast: action=$action")
                 val uuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
 
+                if (action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                    val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                    if (state == BluetoothAdapter.STATE_ON) {
+                        Log.i(TAG, "Bluetooth turned back ON on phone! Triggering instant auto-reconnect for AirPods...")
+                        val savedMac = context?.getSharedPreferences("settings", MODE_PRIVATE)?.getString("mac_address", "") ?: ""
+                        val adapter = (context?.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
+                        var targetDev: BluetoothDevice? = if (savedMac.isNotEmpty() && adapter != null) {
+                            try { adapter.getRemoteDevice(savedMac) } catch (e: Exception) { null }
+                        } else null
+                        if (targetDev == null && adapter != null) {
+                            val airpodsUuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
+                            targetDev = adapter.bondedDevices?.firstOrNull { it.uuids?.contains(airpodsUuid) == true || (it.name?.contains("AirPods", ignoreCase = true) == true) }
+                        }
+                        if (targetDev != null && context != null) {
+                            me.kavishdevar.librepods.bluetooth.InstantAirPodsConnectBridge.triggerInstantConnection(context, targetDev)
+                            val service = ServiceManager.getService()
+                            service?.connectAudio(context, targetDev)
+                        }
+                    }
+                }
+
                 if (BluetoothDevice.ACTION_ACL_CONNECTED == action) {
                     if (bluetoothDevice.uuids?.contains(uuid) == true) {
                         val intent = Intent(AirPodsNotifications.AIRPODS_CONNECTION_DETECTED)
