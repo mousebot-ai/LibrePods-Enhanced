@@ -293,10 +293,13 @@ fun AppSettingsScreen(
             StyledList(title = "AI Ear Whisperer (Head Nod Trigger)") {
                 val prefs = context.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
                 val aiEnabled = remember { androidx.compose.runtime.mutableStateOf(prefs.getBoolean("ai_whisperer_enabled", true)) }
+                val apiKeySaved = prefs.getString("ai_whisperer_api_key", "") ?: ""
+                val apiKeyInputState = remember { androidx.compose.foundation.text.input.TextFieldState(apiKeySaved) }
+                val apiKeyFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
 
                 StyledToggle(
-                    label = "AI Ear Whisperer",
-                    description = "Nod head up & down x2 to discreetly transcribe and whisper conversational answers in your ear.",
+                    label = "AI Ear Whisperer Master",
+                    description = "Nod head up & down x2 to trigger on-demand listening & whisper answer into your ear.",
                     checked = aiEnabled.value,
                     onCheckedChange = { newVal ->
                         aiEnabled.value = newVal
@@ -304,12 +307,42 @@ fun AppSettingsScreen(
                     }
                 )
 
-                StyledToggle(
-                    label = "Gemini Flash AI Engine (Free)",
-                    description = "Uses Google Gemini 2.0 Flash for ultra-fast, zero-cost conversational answers (~200ms).",
-                    checked = true,
-                    onCheckedChange = {}
-                )
+                if (aiEnabled.value) {
+                    androidx.compose.foundation.layout.Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        androidx.compose.material3.Text(
+                            text = "Gemini Flash 2.0 (100% Free - 1500 req/day)",
+                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                        androidx.compose.material3.Text(
+                            text = "No credit card or payment needed. Get a free API key at aistudio.google.com and paste it below:",
+                            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
+                        )
+
+                        StyledInputField(
+                            inputState = apiKeyInputState,
+                            focusRequester = apiKeyFocusRequester,
+                            placeholder = "Paste Gemini API Key (AIzaSy...)",
+                            singleLine = true,
+                            forceApple = true
+                        )
+
+                        androidx.compose.material3.Button(
+                            onClick = {
+                                val key = apiKeyInputState.text.toString().trim()
+                                prefs.edit().putString("ai_whisperer_api_key", key).apply()
+                                android.widget.Toast.makeText(context, "API Key Saved Successfully!", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                        ) {
+                            androidx.compose.material3.Text("Save API Key")
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

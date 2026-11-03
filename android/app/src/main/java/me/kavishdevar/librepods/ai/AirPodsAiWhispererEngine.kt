@@ -195,7 +195,7 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
     private fun callGeminiFlashApi(prompt: String, apiKey: String): String {
         return try {
             val key = if (apiKey.isNotBlank()) apiKey else "DEMO_KEY"
-            val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$key"
+            val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$key"
             val url = URL(urlString)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
