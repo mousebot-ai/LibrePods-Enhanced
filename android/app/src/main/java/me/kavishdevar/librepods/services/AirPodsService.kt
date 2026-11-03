@@ -434,6 +434,7 @@ class AirPodsService : Service(), SharedPreferences.OnSharedPreferenceChangeList
         }
 
         ServiceManager.setService(this)
+        aiWhispererEngine = me.kavishdevar.librepods.ai.AirPodsAiWhispererEngine(this)
         startForegroundNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             initGestureDetector()
@@ -1664,6 +1665,7 @@ class AirPodsService : Service(), SharedPreferences.OnSharedPreferenceChangeList
         return LocalBinder()
     }
 
+    var aiWhispererEngine: me.kavishdevar.librepods.ai.AirPodsAiWhispererEngine? = null
     private var gestureDetector: GestureDetector? = null
     private var isInCall = false
     private var callNumber: String? = null

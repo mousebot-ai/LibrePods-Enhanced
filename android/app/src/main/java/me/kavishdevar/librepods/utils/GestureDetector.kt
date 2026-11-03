@@ -375,6 +375,7 @@ fun startDetection(doNotStop: Boolean = false, onGestureDetected: (Boolean) -> U
             Log.d(TAG, "Vertical motion confidence: $confidence (need $minConfidenceThreshold)")
 
             if (confidence >= minConfidenceThreshold) {
+                airPodsService.aiWhispererEngine?.onDoubleNodDetected()
                 Log.d(TAG, "\"Yes\" Gesture Detected (confidence: $confidence, extremes: ${allExtremes.size}/$requiredExtremes)")
                 return true
             }
