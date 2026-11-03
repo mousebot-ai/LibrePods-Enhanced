@@ -41,7 +41,7 @@ object HeadTracking {
     private const val CALIBRATION_SAMPLE_COUNT = 10
     private const val ORIENTATION_OFFSET = 5500
 
-    fun processPacket(packet: ByteArray) {
+    fun processPacket(packet: ByteArray) { if (packet.size < 55) return
         val o1 = bytesToInt(packet[43], packet[44])
         val o2 = bytesToInt(packet[45], packet[46])
         val o3 = bytesToInt(packet[47], packet[48])

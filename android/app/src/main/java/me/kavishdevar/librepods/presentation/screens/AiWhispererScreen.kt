@@ -46,6 +46,10 @@ fun AiWhispererScreen() {
     val testStatus = remember { mutableStateOf("") }
     val isTesting = remember { mutableStateOf(false) }
 
+    val openrouterSaved = remember { mutableStateOf(openrouterKeySaved.isNotBlank()) }
+    val geminiSaved = remember { mutableStateOf(geminiKeySaved.isNotBlank()) }
+    val nvidiaSaved = remember { mutableStateOf(nvidiaKeySaved.isNotBlank()) }
+
     val topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 84.dp
     val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp
 
@@ -163,11 +167,15 @@ fun AiWhispererScreen() {
                         onClick = {
                             val k = openrouterInputState.text.toString().trim()
                             prefs.edit().putString("ai_key_openrouter", k).apply()
+                            openrouterSaved.value = true
                             Toast.makeText(context, "OpenRouter Key Saved!", Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (openrouterSaved.value) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary
+                        )
                     ) {
-                        Text("Save Key")
+                        Text(if (openrouterSaved.value) "Saved ✓" else "Save Key")
                     }
 
                     OutlinedButton(
@@ -184,6 +192,7 @@ fun AiWhispererScreen() {
                                 Handler(Looper.getMainLooper()).post {
                                     isTesting.value = false
                                     testStatus.value = "OpenRouter: $msg"
+                                    if (success) openrouterSaved.value = true
                                     Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                                 }
                             }
@@ -224,11 +233,15 @@ fun AiWhispererScreen() {
                         onClick = {
                             val k = geminiInputState.text.toString().trim()
                             prefs.edit().putString("ai_key_gemini", k).apply()
+                            geminiSaved.value = true
                             Toast.makeText(context, "Gemini Key Saved!", Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (geminiSaved.value) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary
+                        )
                     ) {
-                        Text("Save Key")
+                        Text(if (geminiSaved.value) "Saved ✓" else "Save Key")
                     }
 
                     OutlinedButton(
@@ -245,6 +258,7 @@ fun AiWhispererScreen() {
                                 Handler(Looper.getMainLooper()).post {
                                     isTesting.value = false
                                     testStatus.value = "Gemini: $msg"
+                                    if (success) geminiSaved.value = true
                                     Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                                 }
                             }
@@ -285,11 +299,15 @@ fun AiWhispererScreen() {
                         onClick = {
                             val k = nvidiaInputState.text.toString().trim()
                             prefs.edit().putString("ai_key_nvidia", k).apply()
+                            nvidiaSaved.value = true
                             Toast.makeText(context, "NVIDIA Key Saved!", Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (nvidiaSaved.value) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary
+                        )
                     ) {
-                        Text("Save Key")
+                        Text(if (nvidiaSaved.value) "Saved ✓" else "Save Key")
                     }
 
                     OutlinedButton(
@@ -306,6 +324,7 @@ fun AiWhispererScreen() {
                                 Handler(Looper.getMainLooper()).post {
                                     isTesting.value = false
                                     testStatus.value = "NVIDIA: $msg"
+                                    if (success) nvidiaSaved.value = true
                                     Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                                 }
                             }
@@ -331,3 +350,4 @@ fun AiWhispererScreen() {
         }
     }
 }
+

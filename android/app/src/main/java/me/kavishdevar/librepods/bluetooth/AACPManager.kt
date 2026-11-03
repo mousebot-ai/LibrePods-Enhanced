@@ -484,7 +484,7 @@ class AACPManager {
             }
 
             Opcodes.HEADTRACKING -> {
-                if (packet.size < 70) {
+                if (packet.size < 16) {
                     Log.w(
                         TAG, "Received HEADTRACKING packet too short: ${
                         packet.joinToString(" ") {

@@ -2218,8 +2218,17 @@ class AirPodsService : Service(), SharedPreferences.OnSharedPreferenceChangeList
 
     @RequiresApi(Build.VERSION_CODES.R)
     fun processHeadTrackingData(data: ByteArray) {
-        val horizontal = ByteBuffer.wrap(data, 51, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
-        val vertical = ByteBuffer.wrap(data, 53, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+        if (data.size < 16) return
+        val (horizontal, vertical) = if (data.size >= 55) {
+            val h = ByteBuffer.wrap(data, 51, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+            val v = ByteBuffer.wrap(data, 53, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+            Pair(h, v)
+        } else {
+            // Short 21-byte IMU vector: byte 13 is vertical/pitch sequence, byte 14 is horizontal/yaw
+            val h = (data[14].toInt() shl 8) or (data[13].toInt() and 0xFF)
+            val v = (data[12].toInt() shl 8) or (data[11].toInt() and 0xFF)
+            Pair(h, v)
+        }
         try {
             gestureDetector?.processHeadOrientation(horizontal, vertical)
         } catch (e: Exception) {
@@ -3259,3 +3268,4 @@ fun getNextMode(currentMode: Int, configByte: Int, offmodeEnabled: Boolean): Int
 
     return enabledModes[nextIndex]
 }
+
