@@ -106,6 +106,7 @@ fun AppNavGraph(
                                 navigateToAdaptiveStrength = { navigate(Screen.AdaptiveStrength) },
                                 navigateToEqualizer = { navigate(Screen.Equalizer) },
                                 navigateToHeadTracking = { navigate(Screen.HeadTracking) },
+                                navigateToAiWhisperer = { navigate(Screen.AiWhisperer) },
                                 navigateToAccessibility = { navigate(Screen.Accessibility) },
                                 navigateToVersion = { navigate(Screen.VersionInfo) },
                                 navigateToTroubleshooting = { navigate(Screen.Troubleshooting) },
@@ -141,6 +142,11 @@ fun AppNavGraph(
                         NavEntry(screen) {
                             if (!airPodsViewModel.isReady) LoadingScreen()
                             HeadTrackingScreen(airPodsViewModel, ::navigateToPurchase)
+                        }
+
+                    Screen.AiWhisperer ->
+                        NavEntry(screen) {
+                            me.kavishdevar.librepods.presentation.screens.AiWhispererScreen()
                         }
 
                     Screen.Accessibility ->

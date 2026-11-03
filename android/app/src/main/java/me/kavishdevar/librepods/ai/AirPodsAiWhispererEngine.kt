@@ -22,12 +22,12 @@ import java.util.Locale
 /**
  * AirPodsAiWhispererEngine
  *
- * Privacy-First, On-Demand Conversational Ear Whisperer for AirPods Pro.
- * Security & Power Guarantees:
- * 1. Zero 24/7 Listening: The microphone is completely powered OFF and unallocated until a double-nod gesture is validated.
- * 2. Hardware Autostop: Automatically releases microphone hardware after 5.5 seconds or upon silence.
- * 3. Ephemeral Processing: Audio frames never hit disk or cloud storage. Only the transcribing text is sent to the LLM.
- * 4. Ultra-Low Data: Only a single JSON text payload (~150 bytes) per query.
+ * Privacy-First, Instant Conversational Ear Whisperer for AirPods Pro.
+ * Guarantees:
+ * 1. Zero 24/7 Listening: Microphone hardware is completely idle and destroyed until nod gesture.
+ * 2. Instant Streaming Whisper: Answers are parsed instantly and whispered into earbud voice call stream.
+ * 3. Master Hardware Switch: Strictly checks "ai_whisperer_enabled". If false, zero processing happens.
+ * 4. Separate Per-Provider API Keys: OpenRouter, Gemini, and NVIDIA NIM each keep their own dedicated keys.
  */
 class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnInitListener {
 
@@ -50,32 +50,31 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             tts?.language = Locale.getDefault()
-            tts?.setSpeechRate(1.15f) // Slightly faster for natural whisper
+            tts?.setSpeechRate(1.25f) // Optimized speed for instant concise whispers
             tts?.setPitch(0.95f)
             isTtsReady = true
-            Log.d(TAG, "TTS initialized and ready for ear whispers")
+            Log.d(TAG, "TTS initialized and primed for ear whispers")
         }
     }
 
     /**
-     * Triggered strictly by the physical AirPods double-nod gesture.
+     * Called when a head nod gesture is validated.
      */
     fun onDoubleNodDetected() {
-        if (isListening) {
-            Log.d(TAG, "Already in listening cycle, ignoring duplicate gesture")
-            return
-        }
-
         val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-        val enabled = prefs.getBoolean("ai_whisperer_enabled", true)
-        if (!enabled) {
-            Log.d(TAG, "AI Whisperer is disabled in settings")
+        val masterEnabled = prefs.getBoolean("ai_whisperer_enabled", false)
+        if (!masterEnabled) {
+            Log.d(TAG, "AI Whisperer is disabled via Master Switch - ignoring gesture")
             return
         }
 
-        Log.i(TAG, "Double-nod gesture validated! Starting privacy-guarded listening cycle...")
-        // Play subtle ear chime confirming activation
-        playActivationChime()
+        // Check if head gesture chime is enabled
+        val chimeEnabled = prefs.getBoolean("ai_head_chime_enabled", false)
+        if (chimeEnabled) {
+            playActivationChime()
+        }
+
+        Log.i(TAG, "Double-nod gesture validated! Starting instant privacy-guarded listening cycle...")
         startGuardedListening()
     }
 
@@ -95,15 +94,14 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
-                    putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
-                    putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L)
+                    putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L)
+                    putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1000L)
                 }
 
                 speechRecognizer?.setRecognitionListener(object : RecognitionListener {
                     override fun onReadyForSpeech(params: Bundle?) {
                         isListening = true
                         Log.d(TAG, "Microphone ACTIVE. Listening for friend's question...")
-                        // Arm strict watchdog to kill mic if no speech occurs
                         listeningTimeoutJob?.cancel()
                         listeningTimeoutJob = scope.launch {
                             delay(TIMEOUT_MS)
@@ -112,28 +110,27 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
                     }
 
                     override fun onBeginningOfSpeech() {
-                        Log.d(TAG, "Speech began")
+                        Log.d(TAG, "Speech detected")
                     }
 
                     override fun onRmsChanged(rmsdB: Float) {}
                     override fun onBufferReceived(buffer: ByteArray?) {}
                     override fun onEndOfSpeech() {
-                        Log.d(TAG, "Speech ended. Releasing microphone hardware immediately.")
-                        stopListening()
+                        Log.d(TAG, "Speech finished, processing audio...")
                     }
 
                     override fun onError(error: Int) {
-                        Log.w(TAG, "Speech recognition error code: $error. Releasing mic.")
+                        Log.w(TAG, "Speech recognition error: $error")
                         stopListening()
                     }
 
                     override fun onResults(results: Bundle?) {
                         stopListening()
                         val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                        val question = matches?.firstOrNull()?.trim()
-                        if (!question.isNullOrEmpty()) {
-                            Log.i(TAG, "Captured conversational question: \"$question\"")
-                            queryAiAndWhisper(question)
+                        if (!matches.isNullOrEmpty()) {
+                            val recognizedText = matches[0]
+                            Log.i(TAG, "Heard question: \"$recognizedText\"")
+                            queryAiAndWhisper(recognizedText)
                         }
                     }
 
@@ -142,9 +139,8 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
                 })
 
                 speechRecognizer?.startListening(intent)
-
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to start speech recognizer: ${e.message}")
+                Log.e(TAG, "Error starting speech recognition: ${e.message}")
                 stopListening()
             }
         }
@@ -161,7 +157,7 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
                 speechRecognizer?.stopListening()
                 speechRecognizer?.destroy()
                 speechRecognizer = null
-                Log.d(TAG, "Microphone completely powered OFF & destroyed. 0% idle battery draw.")
+                Log.d(TAG, "Microphone completely powered OFF & destroyed.")
             } catch (e: Exception) {
                 Log.w(TAG, "Error cleaning up SpeechRecognizer: ${e.message}")
             }
@@ -171,20 +167,23 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
     private fun queryAiAndWhisper(question: String) {
         scope.launch {
             val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-            val apiKey = prefs.getString("ai_whisperer_api_key", "") ?: ""
-            val provider = prefs.getString("ai_whisperer_provider", "gemini") ?: "gemini"
+            val provider = prefs.getString("ai_whisperer_provider", "openrouter") ?: "openrouter"
 
-            val prompt = "You are a discreet personal conversational whisperer in an earbud. Answer this conversational question concisely in 1 or 2 natural, spoken sentences maximum. Do not use bullet points, markdown, or greetings. Directly state the facts: $question"
+            val prompt = "You are a discreet personal conversational whisperer in an earbud. Answer this conversational question concisely in 1 or 2 natural spoken sentences maximum. Do not use bullet points, markdown, or greetings. Directly state the facts: $question"
 
-            var answer = ""
-
-            if (provider == "nvidia") {
-                answer = callNvidiaApi(prompt, apiKey)
-            } else if (provider == "openrouter") {
-                answer = callOpenRouterApi(prompt, apiKey)
-            } else {
-                // Default: Gemini 2.0 Flash (Free API)
-                answer = callGeminiFlashApi(prompt, apiKey)
+            val answer = when (provider) {
+                "openrouter" -> {
+                    val key = prefs.getString("ai_key_openrouter", "") ?: ""
+                    callOpenRouterApi(prompt, key)
+                }
+                "nvidia" -> {
+                    val key = prefs.getString("ai_key_nvidia", "") ?: ""
+                    callNvidiaApi(prompt, key)
+                }
+                else -> {
+                    val key = prefs.getString("ai_key_gemini", "") ?: ""
+                    callGeminiFlashApi(prompt, key)
+                }
             }
 
             if (answer.isNotBlank()) {
@@ -194,14 +193,22 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
         }
     }
 
-    private fun callGeminiFlashApi(prompt: String, apiKey: String): String {
+    fun callGeminiFlashApi(prompt: String, apiKey: String): String {
         return try {
-            val key = if (apiKey.isNotBlank()) apiKey else "DEMO_KEY"
-            val urlString = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$key"
+            val key = apiKey.trim()
+            val urlString = if (key.startsWith("AQ.")) {
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+            } else {
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$key"
+            }
             val url = URL(urlString)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
+            if (key.startsWith("AQ.")) {
+                conn.setRequestProperty("Authorization", "Bearer $key")
+                conn.setRequestProperty("x-goog-api-key", key)
+            }
             conn.connectTimeout = 4000
             conn.readTimeout = 4000
             conn.doOutput = true
@@ -233,7 +240,8 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
                     .getString("text")
                 text.trim()
             } else {
-                Log.w(TAG, "Gemini HTTP error: ${conn.responseCode}")
+                val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                Log.w(TAG, "Gemini HTTP error ${conn.responseCode}: $err")
                 ""
             }
         } catch (e: Exception) {
@@ -242,19 +250,19 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
         }
     }
 
-    private fun callNvidiaApi(prompt: String, apiKey: String): String {
+    fun callNvidiaApi(prompt: String, apiKey: String): String {
         return try {
             val url = URL("https://integrate.api.nvidia.com/v1/chat/completions")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
-            conn.setRequestProperty("Authorization", "Bearer $apiKey")
+            conn.setRequestProperty("Authorization", "Bearer ${apiKey.trim()}")
             conn.connectTimeout = 4000
             conn.readTimeout = 4000
             conn.doOutput = true
 
             val jsonBody = JSONObject().apply {
-                put("model", "meta/llama-3.3-70b-instruct")
+                put("model", "deepseek-ai/deepseek-v4.1-flash")
                 val messages = JSONArray().apply {
                     put(JSONObject().apply {
                         put("role", "user")
@@ -271,27 +279,32 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
             if (conn.responseCode == 200) {
                 val response = BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
                 val root = JSONObject(response)
-                root.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content").trim()
-            } else ""
+                val choice = root.getJSONArray("choices").getJSONObject(0).getJSONObject("message")
+                choice.optString("content", "").trim()
+            } else {
+                val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                Log.w(TAG, "NVIDIA HTTP error ${conn.responseCode}: $err")
+                ""
+            }
         } catch (e: Exception) {
             Log.e(TAG, "NVIDIA API error: ${e.message}")
             ""
         }
     }
 
-    private fun callOpenRouterApi(prompt: String, apiKey: String): String {
+    fun callOpenRouterApi(prompt: String, apiKey: String): String {
         return try {
             val url = URL("https://openrouter.ai/api/v1/chat/completions")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json")
-            conn.setRequestProperty("Authorization", "Bearer $apiKey")
+            conn.setRequestProperty("Authorization", "Bearer ${apiKey.trim()}")
             conn.connectTimeout = 4000
             conn.readTimeout = 4000
             conn.doOutput = true
 
             val jsonBody = JSONObject().apply {
-                put("model", "qwen/qwen-2.5-72b-instruct:free")
+                put("model", "openrouter/free")
                 val messages = JSONArray().apply {
                     put(JSONObject().apply {
                         put("role", "user")
@@ -299,7 +312,7 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
                     })
                 }
                 put("messages", messages)
-                put("max_tokens", 80)
+                put("max_tokens", 120)
             }
 
             OutputStreamWriter(conn.outputStream).use { it.write(jsonBody.toString()); it.flush() }
@@ -307,8 +320,17 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
             if (conn.responseCode == 200) {
                 val response = BufferedReader(InputStreamReader(conn.inputStream)).use { it.readText() }
                 val root = JSONObject(response)
-                root.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content").trim()
-            } else ""
+                val choice = root.getJSONArray("choices").getJSONObject(0).getJSONObject("message")
+                var text = choice.optString("content", "")
+                if (text.isBlank()) {
+                    text = choice.optString("reasoning", "")
+                }
+                text.trim()
+            } else {
+                val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                Log.w(TAG, "OpenRouter HTTP error ${conn.responseCode}: $err")
+                ""
+            }
         } catch (e: Exception) {
             Log.e(TAG, "OpenRouter API error: ${e.message}")
             ""
@@ -343,15 +365,13 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
         scope.launch {
             try {
                 val testPrompt = "Reply with exactly one word: OK"
-                val response = if (provider == "nvidia") {
-                    callNvidiaApi(testPrompt, apiKey)
-                } else if (provider == "openrouter") {
-                    callOpenRouterApi(testPrompt, apiKey)
-                } else {
-                    callGeminiFlashApi(testPrompt, apiKey)
+                val response = when (provider) {
+                    "openrouter" -> callOpenRouterApi(testPrompt, apiKey)
+                    "nvidia" -> callNvidiaApi(testPrompt, apiKey)
+                    else -> callGeminiFlashApi(testPrompt, apiKey)
                 }
                 if (response.isNotBlank()) {
-                    onResult(true, "Success: AI responded!")
+                    onResult(true, "Success: AI replied: \"$response\"")
                 } else {
                     onResult(false, "Failed: empty or invalid response. Check your API key.")
                 }
@@ -360,6 +380,7 @@ class AirPodsAiWhispererEngine(private val context: Context) : TextToSpeech.OnIn
             }
         }
     }
+
     fun release() {
         stopListening()
         tts?.stop()

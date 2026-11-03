@@ -118,7 +118,10 @@ fun startDetection(doNotStop: Boolean = false, onGestureDetected: ((Boolean) -> 
                 val gesture = detectGestures()
                 if (gesture != null) {
                     withContext(Dispatchers.Main) {
-                        audio.playConfirmation(gesture)
+                        val prefs = airPodsService.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
+                        if (prefs.getBoolean("ai_head_chime_enabled", false)) {
+                            audio.playConfirmation(gesture)
+                        }
 
                         gestureDetectedCallback?.invoke(gesture)
                         if (!doNotStop) {
@@ -162,17 +165,24 @@ fun startDetection(doNotStop: Boolean = false, onGestureDetected: ((Boolean) -> 
         val significantHorizontal = abs(horizontalDelta) > IMMEDIATE_FEEDBACK_THRESHOLD
         val significantVertical = abs(verticalDelta) > IMMEDIATE_FEEDBACK_THRESHOLD
 
+        val prefs = airPodsService.getSharedPreferences("settings", android.content.Context.MODE_PRIVATE)
+        val chimesEnabled = prefs.getBoolean("ai_head_chime_enabled", false)
+
         if (significantHorizontal && (!significantVertical || abs(horizontalDelta) > abs(verticalDelta))) {
-            CoroutineScope(Dispatchers.Main).launch {
-                audio.playDirectional(isVertical = false, value = horizontalDelta)
+            if (chimesEnabled) {
+                CoroutineScope(Dispatchers.Main).launch {
+                    audio.playDirectional(isVertical = false, value = horizontalDelta)
+                }
             }
             significantMotion = true
             lastSignificantMotionTime = System.currentTimeMillis()
             Log.d(TAG, "Significant HORIZONTAL movement: $horizontalDelta")
         }
         else if (significantVertical) {
-            CoroutineScope(Dispatchers.Main).launch {
-                audio.playDirectional(isVertical = true, value = verticalDelta)
+            if (chimesEnabled) {
+                CoroutineScope(Dispatchers.Main).launch {
+                    audio.playDirectional(isVertical = true, value = verticalDelta)
+                }
             }
             significantMotion = true
             lastSignificantMotionTime = System.currentTimeMillis()

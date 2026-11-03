@@ -140,6 +140,7 @@ fun AirPodsSettingsRoute(
     navigateToAdaptiveStrength: () -> Unit,
     navigateToEqualizer: () -> Unit,
     navigateToHeadTracking: () -> Unit,
+    navigateToAiWhisperer: () -> Unit,
     navigateToAccessibility: () -> Unit,
     navigateToVersion: () -> Unit,
     navigateToTroubleshooting: () -> Unit,
@@ -185,6 +186,7 @@ fun AirPodsSettingsRoute(
             navigateToAdaptiveStrength = navigateToAdaptiveStrength,
             navigateToEqualizer = navigateToEqualizer,
             navigateToHeadTracking = navigateToHeadTracking,
+            navigateToAiWhisperer = navigateToAiWhisperer,
             navigateToAccessibility = navigateToAccessibility,
             navigateToVersion = navigateToVersion,
             navigateToTroubleshooting = navigateToTroubleshooting,
@@ -227,6 +229,7 @@ fun AirPodsSettingsScreen(
         navigateToAdaptiveStrength: () -> Unit,
         navigateToEqualizer: () -> Unit,
         navigateToHeadTracking: () -> Unit,
+        navigateToAiWhisperer: () -> Unit,
         navigateToAccessibility: () -> Unit,
         navigateToVersion: () -> Unit,
         navigateToTroubleshooting: () -> Unit,
@@ -528,6 +531,16 @@ fun AirPodsSettingsScreen(
                         enabled = state.isPremium
                     )
                 }
+            }
+
+            item(key = "spacer_ai_whisperer") { Spacer(modifier = Modifier.height(16.dp)) }
+            item(key = "ai_whisperer") {
+                val aiOn = sharedPreferences.getBoolean("ai_whisperer_enabled", false)
+                StyledListItem(
+                    name = "AI Ear Whisperer",
+                    description = if (aiOn) "On (Double-Nod Trigger)" else "Off",
+                    onClick = navigateToAiWhisperer
+                )
             }
 
             if (capabilities.contains(Capability.HEAD_GESTURES)) {
@@ -981,6 +994,7 @@ fun AirPodsSettingsScreenPreviewApple() {
                 navigateToAdaptiveStrength = {},
                 navigateToEqualizer = {},
                 navigateToHeadTracking = {},
+                navigateToAiWhisperer = {},
                 navigateToAccessibility = {},
                 navigateToVersion = {},
                 navigateToTroubleshooting = {},
@@ -1028,6 +1042,7 @@ fun AirPodsSettingsScreenPreviewMaterial() {
                 navigateToAdaptiveStrength = {},
                 navigateToEqualizer = {},
                 navigateToHeadTracking = {},
+                navigateToAiWhisperer = {},
                 navigateToAccessibility = {},
                 navigateToVersion = {},
                 navigateToTroubleshooting = {},
